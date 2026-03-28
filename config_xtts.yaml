@@ -1,0 +1,12 @@
+# tts_project/config_xtts.yaml
+
+# Configuration des dossiers d'entrée et de sortie
+input_dir: "input_docs"
+output_dir: "output_audio"
+
+# Voix par défaut pour XTTS v2 (à déterminer après avoir testé test_voices_xtts.py)
+# Exemples de voix par défaut (si on n'utilise pas le clonage) : "Ana Florence", "Henriette Usha", "Gilles Beatrice"
+voice: "Ana Florence"
+
+# Langue
+language: "fr"
