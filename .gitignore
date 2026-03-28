@@ -1,2 +1,3 @@
 output_audio/*.mp3
+input_docs/*.docx
 __pycache__/
