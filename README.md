@@ -37,7 +37,7 @@ Le script est optimisé pour le français, traite les longs documents paragraphe
 
 Avant de commencer, assurez-vous d'avoir installé les outils suivants :
 
-1. **Python 3.10+**
+1. **Python 3.12+**
 2. **[uv](https://github.com/astral-sh/uv)** - Le gestionnaire de paquets Python ultra-rapide écrit en Rust :
    ```bash
    pip install uv
@@ -54,7 +54,7 @@ Avant de commencer, assurez-vous d'avoir installé les outils suivants :
 1. Clonez ce dépôt ou téléchargez les fichiers.
 2. Déplacez-vous dans le répertoire du projet :
    ```bash
-   cd tts_project
+   cd .
    ```
 3. Installez les dépendances et créez l'environnement virtuel automatiquement via `uv` :
    ```bash
@@ -95,7 +95,7 @@ Les fichiers audio de test seront générés dans le dossier `test_voices_output
 ## 📁 Structure du projet
 
 ```text
-tts_project/
+./
 ├── .venv/                   # Environnement virtuel (créé par uv)
 ├── input_docs/              # Placez vos fichiers .docx ici
 ├── output_audio/            # Fichiers .mp3 générés
