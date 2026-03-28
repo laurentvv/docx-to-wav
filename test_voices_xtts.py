@@ -1,5 +1,5 @@
 import os
-import sys
+
 import torch
 
 # Fix for weight_only PyTorch 2.6 issue
@@ -13,7 +13,7 @@ except ImportError:
 # Auto-accept Coqui's license by mocking input, or by setting the environment variable
 os.environ["COQUI_TOS_AGREED"] = "1"
 
-import yaml
+
 from TTS.api import TTS
 
 def main():

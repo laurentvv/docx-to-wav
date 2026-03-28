@@ -1,5 +1,5 @@
 import os
-import sys
+
 import glob
 import subprocess
 import yaml
@@ -76,9 +76,9 @@ def process_document(docx_path, output_dir, tts, voice, language="fr"):
                 # Add generated audio
                 all_audio_chunks.append(np.array(wav, dtype=np.float32))
 
-            # Ajouter une pause après chaque paragraphe (sauf le dernier)
-            if i < len(paragraphs) - 1:
-                all_audio_chunks.append(silence)
+                # Ajouter une pause après chaque paragraphe (sauf le dernier)
+                if i < len(paragraphs) - 1:
+                    all_audio_chunks.append(silence)
 
         except Exception as e:
             print(f"     Erreur lors du traitement du paragraphe {i+1} : {e}")
