@@ -18,8 +18,8 @@ import os
 import sys
 import glob
 import yaml
-from pathlib import Path
-from docx import Document
+
+from utils import check_google_credentials, extract_text_from_docx
 
 try:
     from google.cloud import texttospeech
@@ -33,46 +33,6 @@ def load_config(config_path="config_google_tts.yaml"):
     """Charge la configuration depuis le fichier YAML."""
     with open(config_path, "r", encoding="utf-8") as f:
         return yaml.safe_load(f)
-
-
-def check_credentials():
-    """Vérifie que les credentials Google Cloud sont configurés."""
-    creds_path = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS")
-    if not creds_path:
-        print("=" * 60)
-        print("⚠️  Configuration des credentials requise !")
-        print("=" * 60)
-        print("\n1. Allez sur: https://console.cloud.google.com/apis/credentials")
-        print("2. Créez un compte de service")
-        print("3. Téléchargez le fichier JSON de la clé")
-        print("4. Définissez la variable d'environnement:")
-        print("\n   Windows (PowerShell):")
-        print('   $env:GOOGLE_APPLICATION_CREDENTIALS="C:\\path\\to\\key.json"')
-        print("\n   Windows (CMD):")
-        print('   set GOOGLE_APPLICATION_CREDENTIALS=C:\\path\\to\\key.json')
-        print("\n   Linux/macOS:")
-        print('   export GOOGLE_APPLICATION_CREDENTIALS="/path/to/key.json"')
-        print("\n" + "=" * 60)
-        return False
-    
-    if not Path(creds_path).exists():
-        print(f"✗ Fichier de credentials non trouvé: {creds_path}")
-        return False
-    
-    print(f"✓ Credentials configurés: {creds_path}")
-    return True
-
-
-def extract_text_from_docx(docx_path):
-    """Extrait le texte d'un document Word paragraphe par paragraphe."""
-    print(f"Extraction du texte depuis {docx_path}...")
-    doc = Document(docx_path)
-    paragraphs = []
-    for para in doc.paragraphs:
-        text = para.text.strip()
-        if text:
-            paragraphs.append(text)
-    return paragraphs
 
 
 def synthesize_text(client, text, voice_name, speaking_rate=1.0, pitch=0.0):
@@ -186,7 +146,7 @@ def process_document(client, docx_path, output_dir, voice_name, speaking_rate=1.
 def main():
     """Fonction principale."""
     # Vérifier les credentials
-    if not check_credentials():
+    if not check_google_credentials():
         return
     
     config = load_config()

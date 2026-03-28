@@ -13,8 +13,9 @@ Prérequis:
 Les fichiers audio seront sauvegardés dans le dossier test_voices_google_output/
 """
 
-import os
 from pathlib import Path
+
+from utils import check_google_credentials
 
 try:
     from google.cloud import texttospeech
@@ -45,39 +46,11 @@ FRENCH_VOICES = [
 TEST_TEXT = "Bonjour, ceci est un test de synthèse vocale avec Google Cloud TTS. J'espère que vous apprécierez la qualité de cette voix française."
 
 
-def check_credentials():
-    """Vérifie que les credentials Google Cloud sont configurés."""
-    creds_path = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS")
-    if not creds_path:
-        print("=" * 60)
-        print("⚠️  Configuration des credentials requise !")
-        print("=" * 60)
-        print("\n1. Allez sur: https://console.cloud.google.com/apis/credentials")
-        print("2. Créez un compte de service")
-        print("3. Téléchargez le fichier JSON de la clé")
-        print("4. Définissez la variable d'environnement:")
-        print("\n   Windows (PowerShell):")
-        print('   $env:GOOGLE_APPLICATION_CREDENTIALS="C:\\path\\to\\key.json"')
-        print("\n   Windows (CMD):")
-        print('   set GOOGLE_APPLICATION_CREDENTIALS=C:\\path\\to\\key.json')
-        print("\n   Linux/macOS:")
-        print('   export GOOGLE_APPLICATION_CREDENTIALS="/path/to/key.json"')
-        print("\n" + "=" * 60)
-        return False
-    
-    if not Path(creds_path).exists():
-        print(f"✗ Fichier de credentials non trouvé: {creds_path}")
-        return False
-    
-    print(f"✓ Credentials configurés: {creds_path}")
-    return True
-
-
 def test_voices():
     """Teste toutes les voix françaises et génère des échantillons audio."""
     
     # Vérifier les credentials
-    if not check_credentials():
+    if not check_google_credentials():
         return
     
     # Créer le dossier de sortie
