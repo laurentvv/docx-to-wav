@@ -9,5 +9,9 @@ output_dir: "output_audio"
 # Note: Kokoro 0.19 has French voices: ff_siwis, af_nicole, af_sarah, af_sky, am_adam, am_michael, etc., or specifically designated ones like `af_` (french female) and `am_` (french male) if applicable. But let's set a default placeholder.
 voice: "ff_siwis"
 
-# Options supplémentaires (ex: vitesse de lecture)
+# Options supplémentaires
 speed: 1.0
+
+# Taux d'échantillonnage audio (Hz)
+# 24000 = qualité standard pour Kokoro TTS
+sample_rate: 24000

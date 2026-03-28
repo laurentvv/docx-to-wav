@@ -7,6 +7,14 @@ import numpy as np
 from docx import Document
 from kokoro import KPipeline
 
+def check_ffmpeg():
+    """Vérifie que ffmpeg est installé et accessible dans le PATH."""
+    try:
+        subprocess.run(['ffmpeg', '-version'], capture_output=True, check=True)
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        raise RuntimeError("ffmpeg n'est pas installé ou non trouvé dans PATH")
+
+
 def load_config(config_path="config.yaml"):
     with open(config_path, "r", encoding="utf-8") as f:
         return yaml.safe_load(f)
@@ -22,7 +30,7 @@ def extract_text_from_docx(docx_path):
             paragraphs.append(text)
     return paragraphs
 
-def process_document(docx_path, output_dir, pipeline, voice, speed=1.0):
+def process_document(docx_path, output_dir, pipeline, voice, speed=1.0, sample_rate=24000):
     base_name = os.path.splitext(os.path.basename(docx_path))[0]
     wav_path = os.path.join(output_dir, f"{base_name}.wav")
     mp3_path = os.path.join(output_dir, f"{base_name}.mp3")
@@ -36,8 +44,7 @@ def process_document(docx_path, output_dir, pipeline, voice, speed=1.0):
 
     all_audio_chunks = []
 
-    # Pause courte entre les paragraphes (par exemple, 0.5 seconde de silence à 24kHz)
-    sample_rate = 24000
+    # Pause courte entre les paragraphes (0.5 seconde de silence)
     pause_duration = 0.5
     silence = np.zeros(int(sample_rate * pause_duration), dtype=np.float32)
 
@@ -87,15 +94,24 @@ def process_document(docx_path, output_dir, pipeline, voice, speed=1.0):
             os.remove(wav_path)
             print("  -> Fichier WAV temporaire supprimé.")
 
-    except subprocess.CalledProcessError as e:
+    except (subprocess.CalledProcessError, FileNotFoundError) as e:
         print(f"  -> Erreur lors de la conversion ffmpeg : {e}")
 
 def main():
+    # Vérifier que ffmpeg est disponible
+    try:
+        check_ffmpeg()
+    except RuntimeError as e:
+        print(f"Erreur: {e}")
+        print("Installez ffmpeg: https://ffmpeg.org/download.html")
+        return
+
     config = load_config()
     input_dir = config.get("input_dir", "input_docs")
     output_dir = config.get("output_dir", "output_audio")
     voice = config.get("voice", "ff_siwis")
     speed = config.get("speed", 1.0)
+    sample_rate = config.get("sample_rate", 24000)
 
     # Création des dossiers si nécessaires
     os.makedirs(input_dir, exist_ok=True)
@@ -125,7 +141,8 @@ def main():
             output_dir=output_dir,
             pipeline=pipeline,
             voice=voice,
-            speed=speed
+            speed=speed,
+            sample_rate=sample_rate
         )
 
     print("\nTerminé ! Tous les fichiers ont été traités.")
