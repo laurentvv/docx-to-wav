@@ -6,8 +6,11 @@ Ce module contient les fonctions partagées entre les différents scripts du pro
 """
 
 import os
+import logging
 from pathlib import Path
 from docx import Document
+
+logger = logging.getLogger(__name__)
 
 
 def check_google_credentials():
@@ -19,27 +22,27 @@ def check_google_credentials():
     """
     creds_path = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS")
     if not creds_path:
-        print("=" * 60)
-        print("⚠️  Configuration des credentials requise !")
-        print("=" * 60)
-        print("\n1. Allez sur: https://console.cloud.google.com/apis/credentials")
-        print("2. Créez un compte de service")
-        print("3. Téléchargez le fichier JSON de la clé")
-        print("4. Définissez la variable d'environnement:")
-        print("\n   Windows (PowerShell):")
-        print('   $env:GOOGLE_APPLICATION_CREDENTIALS="C:\\path\\to\\key.json"')
-        print("\n   Windows (CMD):")
-        print('   set GOOGLE_APPLICATION_CREDENTIALS=C:\\path\\to\\key.json')
-        print("\n   Linux/macOS:")
-        print('   export GOOGLE_APPLICATION_CREDENTIALS="/path/to/key.json"')
-        print("\n" + "=" * 60)
+        logger.error("=" * 60)
+        logger.error("Configuration des credentials requise !")
+        logger.error("=" * 60)
+        logger.info("1. Allez sur: https://console.cloud.google.com/apis/credentials")
+        logger.info("2. Créez un compte de service")
+        logger.info("3. Téléchargez le fichier JSON de la clé")
+        logger.info("4. Définissez la variable d'environnement:")
+        logger.info("   Windows (PowerShell):")
+        logger.info('   $env:GOOGLE_APPLICATION_CREDENTIALS="C:\\path\\to\\key.json"')
+        logger.info("   Windows (CMD):")
+        logger.info('   set GOOGLE_APPLICATION_CREDENTIALS=C:\\path\\to\\key.json')
+        logger.info("   Linux/macOS:")
+        logger.info('   export GOOGLE_APPLICATION_CREDENTIALS="/path/to/key.json"')
+        logger.error("=" * 60)
         return False
     
     if not Path(creds_path).exists():
-        print(f"✗ Fichier de credentials non trouvé: {creds_path}")
+        logger.error(f"Fichier de credentials non trouvé: {creds_path}")
         return False
     
-    print(f"✓ Credentials configurés: {creds_path}")
+    logger.info(f"Credentials configurés: {creds_path}")
     return True
 
 
@@ -53,7 +56,7 @@ def extract_text_from_docx(docx_path):
     Returns:
         list: Liste des paragraphes non vides
     """
-    print(f"Extraction du texte depuis {docx_path}...")
+    logger.info(f"Extraction du texte depuis {docx_path}...")
     doc = Document(docx_path)
     paragraphs = []
     for para in doc.paragraphs:

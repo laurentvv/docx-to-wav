@@ -1,7 +1,15 @@
 import os
+import logging
 import soundfile as sf
 import subprocess
 from kokoro import KPipeline
+
+# Configuration du logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
 # Définition de la phrase de test
 TEST_TEXT = "Bonjour, ceci est un test de la qualité des voix françaises avec Kokoro. J'espère que le résultat sera à la hauteur de vos attentes."
@@ -11,20 +19,20 @@ OUTPUT_DIR = "test_voices_output"
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 # Initialisation du pipeline Kokoro pour le français
-print("Initialisation du pipeline Kokoro pour le français ('f')...")
+logger.info("Initialisation du pipeline Kokoro pour le français ('f')...")
 try:
     pipeline = KPipeline(lang_code='f')
 except Exception as e:
-    print(f"Erreur lors de l'initialisation du pipeline : {e}")
+    logger.error(f"Erreur lors de l'initialisation du pipeline : {e}")
     exit(1)
 
 # Liste des voix françaises (généralement préfixées par ff_ et fm_)
 french_voices = ['ff_siwis'] # Ajoutez d'autres voix françaises ici si elles sont disponibles dans votre version
 
-print(f"Génération d'échantillons pour {len(french_voices)} voix...")
+logger.info(f"Génération d'échantillons pour {len(french_voices)} voix...")
 
 for voice_name in french_voices:
-    print(f"\nTest de la voix : {voice_name}")
+    logger.info(f"Test de la voix : {voice_name}")
     try:
         # Générer l'audio
         generator = pipeline(
@@ -53,14 +61,14 @@ for voice_name in french_voices:
                 if os.path.exists(wav_path):
                     os.remove(wav_path)
 
-                print(f"-> Fichier généré avec succès : {mp3_path}")
+                logger.info(f"Fichier généré avec succès : {mp3_path}")
             else:
-                print(f"-> Aucun audio généré pour {voice_name}.")
+                logger.warning(f"Aucun audio généré pour {voice_name}.")
 
             # Un seul bloc de texte ici, on peut faire un break (utile si le split découpe en plusieurs bouts)
             break
 
     except Exception as e:
-        print(f"-> Erreur avec la voix {voice_name} : {e}")
+        logger.error(f"Erreur avec la voix {voice_name} : {e}")
 
-print("\nTests terminés ! Vous pouvez écouter les fichiers MP3 dans le dossier :", OUTPUT_DIR)
+logger.info(f"Tests terminés ! Vous pouvez écouter les fichiers MP3 dans le dossier : {OUTPUT_DIR}")

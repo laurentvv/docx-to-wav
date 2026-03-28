@@ -13,15 +13,23 @@ Prérequis:
 Les fichiers audio seront sauvegardés dans le dossier test_voices_google_output/
 """
 
+import logging
 from pathlib import Path
 
 from utils import check_google_credentials
 
+# Configuration du logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
+
 try:
     from google.cloud import texttospeech
 except ImportError:
-    print("Erreur: google-cloud-texttospeech n'est pas installé.")
-    print("Installez-le avec: pip install google-cloud-texttospeech")
+    logger.error("google-cloud-texttospeech n'est pas installé.")
+    logger.info("Installez-le avec: pip install google-cloud-texttospeech")
     exit(1)
 
 
@@ -58,20 +66,20 @@ def test_voices():
     output_dir.mkdir(exist_ok=True)
     
     # Initialiser le client
-    print("\nInitialisation du client Google Cloud TTS...")
+    logger.info("Initialisation du client Google Cloud TTS...")
     try:
         client = texttospeech.TextToSpeechClient()
     except Exception as e:
-        print(f"✗ Erreur lors de l'initialisation: {e}")
+        logger.error(f"Erreur lors de l'initialisation: {e}")
         return
     
-    print("=" * 60)
-    print("Test des voix françaises Google Cloud TTS")
-    print("=" * 60)
-    print(f"\nTexte de test: \"{TEST_TEXT[:50]}...\"\n")
+    logger.info("=" * 60)
+    logger.info("Test des voix françaises Google Cloud TTS")
+    logger.info("=" * 60)
+    logger.info(f'Texte de test: "{TEST_TEXT[:50]}..."')
     
     for voice_name, gender in FRENCH_VOICES:
-        print(f"\n--- Test de la voix: {voice_name} ({gender}) ---")
+        logger.info(f"Test de la voix: {voice_name} ({gender})")
         
         try:
             # Configurer la synthèse
@@ -87,7 +95,7 @@ def test_voices():
             )
             
             # Générer l'audio
-            print(f"  Génération de l'audio...")
+            logger.info("Génération de l'audio...")
             response = client.synthesize_speech(
                 input=synthesis_input,
                 voice=voice,
@@ -99,15 +107,15 @@ def test_voices():
             with open(output_file, "wb") as f:
                 f.write(response.audio_content)
             
-            print(f"  ✓ Fichier sauvegardé: {output_file}")
+            logger.info(f"Fichier sauvegardé: {output_file}")
             
         except Exception as e:
-            print(f"  ✗ Erreur avec {voice_name}: {e}")
+            logger.error(f"Erreur avec {voice_name}: {e}")
     
-    print("\n" + "=" * 60)
-    print("Tests terminés !")
-    print(f"Écoutez les fichiers dans: {output_dir.absolute()}")
-    print("=" * 60)
+    logger.info("=" * 60)
+    logger.info("Tests terminés !")
+    logger.info(f"Écoutez les fichiers dans: {output_dir.absolute()}")
+    logger.info("=" * 60)
 
 
 if __name__ == "__main__":

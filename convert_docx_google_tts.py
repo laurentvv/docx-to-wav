@@ -17,15 +17,23 @@ Prérequis:
 import os
 import sys
 import glob
+import logging
 import yaml
 
 from utils import check_google_credentials, extract_text_from_docx
 
+# Configuration du logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
+
 try:
     from google.cloud import texttospeech
 except ImportError:
-    print("Erreur: google-cloud-texttospeech n'est pas installé.")
-    print("Installez-le avec: pip install google-cloud-texttospeech")
+    logger.error("google-cloud-texttospeech n'est pas installé.")
+    logger.info("Installez-le avec: pip install google-cloud-texttospeech")
     exit(1)
 
 
@@ -96,10 +104,10 @@ def process_document(client, docx_path, output_dir, voice_name, speaking_rate=1.
 
     paragraphs = extract_text_from_docx(docx_path)
     if not paragraphs:
-        print(f"  -> Le document {docx_path} est vide ou ne contient pas de texte lisible. Ignoré.")
+        logger.warning(f"Le document {docx_path} est vide ou ne contient pas de texte lisible. Ignoré.")
         return
 
-    print(f"  -> {len(paragraphs)} paragraphes trouvés. Début de la synthèse vocale...")
+    logger.info(f"{len(paragraphs)} paragraphes trouvés. Début de la synthèse vocale...")
 
     # Dossier temporaire pour les fichiers MP3 de chaque paragraphe
     temp_dir = tempfile.mkdtemp(prefix="google_tts_")
@@ -107,7 +115,7 @@ def process_document(client, docx_path, output_dir, voice_name, speaking_rate=1.
 
     try:
         for i, paragraph in enumerate(paragraphs):
-            print(f"     Traitement du paragraphe {i+1}/{len(paragraphs)}...")
+            logger.info(f"Traitement du paragraphe {i+1}/{len(paragraphs)}...")
             
             temp_mp3 = os.path.join(temp_dir, f"paragraph_{i:04d}.mp3")
             
@@ -122,15 +130,15 @@ def process_document(client, docx_path, output_dir, voice_name, speaking_rate=1.
                 mp3_files.append(temp_mp3)
                 
             except Exception as e:
-                print(f"     Erreur lors du traitement du paragraphe {i+1} : {e}")
+                logger.error(f"Erreur lors du traitement du paragraphe {i+1} : {e}")
 
         if not mp3_files:
-            print(f"  -> Aucun audio généré pour {docx_path}.")
+            logger.warning(f"Aucun audio généré pour {docx_path}.")
             return
 
-        print("  -> Concaténation des extraits audio...")
+        logger.info("Concaténation des extraits audio...")
         concatenate_mp3_files(mp3_files, mp3_path)
-        print(f"  ✓ Fichier sauvegardé: {mp3_path}")
+        logger.info(f"Fichier sauvegardé: {mp3_path}")
 
     finally:
         # Nettoyer les fichiers temporaires
@@ -140,7 +148,7 @@ def process_document(client, docx_path, output_dir, voice_name, speaking_rate=1.
         try:
             os.rmdir(temp_dir)
         except OSError as e:
-            print(f"  -> Attention: Impossible de supprimer {temp_dir}: {e}")
+            logger.warning(f"Impossible de supprimer {temp_dir}: {e}")
 
 
 def main():
@@ -165,21 +173,21 @@ def main():
     docx_files = glob.glob(search_pattern)
 
     if not docx_files:
-        print(f"Aucun fichier .docx trouvé dans le dossier '{input_dir}'.")
+        logger.warning(f"Aucun fichier .docx trouvé dans le dossier '{input_dir}'.")
         return
 
-    print(f"\nInitialisation de Google Cloud TTS avec la voix : {voice_name}")
+    logger.info(f"Initialisation de Google Cloud TTS avec la voix : {voice_name}")
     
     try:
         client = texttospeech.TextToSpeechClient()
     except Exception as e:
-        print(f"Erreur lors de l'initialisation du client Google Cloud TTS : {e}")
+        logger.error(f"Erreur lors de l'initialisation du client Google Cloud TTS : {e}")
         return
 
-    print(f"{len(docx_files)} fichier(s) à traiter.")
+    logger.info(f"{len(docx_files)} fichier(s) à traiter.")
 
     for docx_file in docx_files:
-        print(f"\n--- Traitement de : {docx_file} ---")
+        logger.info(f"--- Traitement de : {docx_file} ---")
         process_document(
             client=client,
             docx_path=docx_file,
@@ -189,7 +197,7 @@ def main():
             pitch=pitch
         )
 
-    print("\nTerminé ! Tous les fichiers ont été traités.")
+    logger.info("Terminé ! Tous les fichiers ont été traités.")
 
 
 if __name__ == "__main__":

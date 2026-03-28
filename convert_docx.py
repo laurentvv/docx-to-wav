@@ -1,11 +1,20 @@
 import os
 import glob
 import subprocess
+import logging
 import yaml
 import soundfile as sf
 import numpy as np
 from docx import Document
 from kokoro import KPipeline
+
+# Configuration du logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
+
 
 def check_ffmpeg():
     """Vérifie que ffmpeg est installé et accessible dans le PATH."""
@@ -20,7 +29,7 @@ def load_config(config_path="config.yaml"):
         return yaml.safe_load(f)
 
 def extract_text_from_docx(docx_path):
-    print(f"Extraction du texte depuis {docx_path}...")
+    logger.info(f"Extraction du texte depuis {docx_path}...")
     doc = Document(docx_path)
     paragraphs = []
     for para in doc.paragraphs:
@@ -37,10 +46,10 @@ def process_document(docx_path, output_dir, pipeline, voice, speed=1.0, sample_r
 
     paragraphs = extract_text_from_docx(docx_path)
     if not paragraphs:
-        print(f"  -> Le document {docx_path} est vide ou ne contient pas de texte lisible. Ignoré.")
+        logger.warning(f"Le document {docx_path} est vide ou ne contient pas de texte lisible. Ignoré.")
         return
 
-    print(f"  -> {len(paragraphs)} paragraphes trouvés. Début de la synthèse vocale...")
+    logger.info(f"{len(paragraphs)} paragraphes trouvés. Début de la synthèse vocale...")
 
     all_audio_chunks = []
 
@@ -49,7 +58,7 @@ def process_document(docx_path, output_dir, pipeline, voice, speed=1.0, sample_r
     silence = np.zeros(int(sample_rate * pause_duration), dtype=np.float32)
 
     for i, paragraph in enumerate(paragraphs):
-        print(f"     Traitement du paragraphe {i+1}/{len(paragraphs)}...")
+        logger.info(f"Traitement du paragraphe {i+1}/{len(paragraphs)}...")
 
         try:
             # Kokoro generator
@@ -68,42 +77,42 @@ def process_document(docx_path, output_dir, pipeline, voice, speed=1.0, sample_r
                 all_audio_chunks.append(silence)
 
         except Exception as e:
-            print(f"     Erreur lors du traitement du paragraphe {i+1} : {e}")
+            logger.error(f"Erreur lors du traitement du paragraphe {i+1} : {e}")
 
     if not all_audio_chunks:
-        print(f"  -> Aucun audio généré pour {docx_path}.")
+        logger.warning(f"Aucun audio généré pour {docx_path}.")
         return
 
-    print("  -> Concaténation des extraits audio...")
+    logger.info("Concaténation des extraits audio...")
     final_audio = np.concatenate(all_audio_chunks)
 
-    print("  -> Sauvegarde du fichier temporaire WAV...")
+    logger.info("Sauvegarde du fichier temporaire WAV...")
     sf.write(wav_path, final_audio, sample_rate)
 
-    print(f"  -> Conversion en MP3 : {mp3_path}...")
+    logger.info(f"Conversion en MP3 : {mp3_path}...")
     try:
         subprocess.run([
             'ffmpeg', '-y', '-i', wav_path,
             '-codec:a', 'libmp3lame', '-qscale:a', '2',
             '-loglevel', 'error', mp3_path
         ], check=True)
-        print("  -> Conversion MP3 réussie !")
+        logger.info("Conversion MP3 réussie !")
 
         # Supprimer le fichier WAV temporaire
         if os.path.exists(wav_path):
             os.remove(wav_path)
-            print("  -> Fichier WAV temporaire supprimé.")
+            logger.info("Fichier WAV temporaire supprimé.")
 
     except (subprocess.CalledProcessError, FileNotFoundError) as e:
-        print(f"  -> Erreur lors de la conversion ffmpeg : {e}")
+        logger.error(f"Erreur lors de la conversion ffmpeg : {e}")
 
 def main():
     # Vérifier que ffmpeg est disponible
     try:
         check_ffmpeg()
     except RuntimeError as e:
-        print(f"Erreur: {e}")
-        print("Installez ffmpeg: https://ffmpeg.org/download.html")
+        logger.error(f"{e}")
+        logger.info("Installez ffmpeg: https://ffmpeg.org/download.html")
         return
 
     config = load_config()
@@ -122,20 +131,20 @@ def main():
     docx_files = glob.glob(search_pattern)
 
     if not docx_files:
-        print(f"Aucun fichier .docx trouvé dans le dossier '{input_dir}'.")
+        logger.warning(f"Aucun fichier .docx trouvé dans le dossier '{input_dir}'.")
         return
 
-    print(f"Initialisation de Kokoro avec la voix : {voice}")
+    logger.info(f"Initialisation de Kokoro avec la voix : {voice}")
     try:
         pipeline = KPipeline(lang_code='f')
     except Exception as e:
-        print(f"Erreur lors de l'initialisation du pipeline Kokoro : {e}")
+        logger.error(f"Erreur lors de l'initialisation du pipeline Kokoro : {e}")
         return
 
-    print(f"{len(docx_files)} fichier(s) à traiter.")
+    logger.info(f"{len(docx_files)} fichier(s) à traiter.")
 
     for docx_file in docx_files:
-        print(f"\n--- Traitement de : {docx_file} ---")
+        logger.info(f"--- Traitement de : {docx_file} ---")
         process_document(
             docx_path=docx_file,
             output_dir=output_dir,
@@ -145,7 +154,7 @@ def main():
             sample_rate=sample_rate
         )
 
-    print("\nTerminé ! Tous les fichiers ont été traités.")
+    logger.info("Terminé ! Tous les fichiers ont été traités.")
 
 if __name__ == "__main__":
     main()
