@@ -1,0 +1,236 @@
+#!/usr/bin/env python3
+"""
+Script de conversion de documents Word (.docx) en fichiers audio MP3
+en utilisant Google Cloud Text-to-Speech.
+
+Usage:
+    python convert_docx_google_tts.py
+
+Configuration:
+    Modifiez le fichier config_google_tts.yaml pour changer la voix ou les dossiers.
+    
+Prérequis:
+    1. Installer: pip install google-cloud-texttospeech
+    2. Configurer les credentials: export GOOGLE_APPLICATION_CREDENTIALS="/path/to/key.json"
+"""
+
+import os
+import sys
+import glob
+import yaml
+from pathlib import Path
+from docx import Document
+
+try:
+    from google.cloud import texttospeech
+except ImportError:
+    print("Erreur: google-cloud-texttospeech n'est pas installé.")
+    print("Installez-le avec: pip install google-cloud-texttospeech")
+    exit(1)
+
+
+def load_config(config_path="config_google_tts.yaml"):
+    """Charge la configuration depuis le fichier YAML."""
+    with open(config_path, "r", encoding="utf-8") as f:
+        return yaml.safe_load(f)
+
+
+def check_credentials():
+    """Vérifie que les credentials Google Cloud sont configurés."""
+    creds_path = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS")
+    if not creds_path:
+        print("=" * 60)
+        print("⚠️  Configuration des credentials requise !")
+        print("=" * 60)
+        print("\n1. Allez sur: https://console.cloud.google.com/apis/credentials")
+        print("2. Créez un compte de service")
+        print("3. Téléchargez le fichier JSON de la clé")
+        print("4. Définissez la variable d'environnement:")
+        print("\n   Windows (PowerShell):")
+        print('   $env:GOOGLE_APPLICATION_CREDENTIALS="C:\\path\\to\\key.json"')
+        print("\n   Windows (CMD):")
+        print('   set GOOGLE_APPLICATION_CREDENTIALS=C:\\path\\to\\key.json')
+        print("\n   Linux/macOS:")
+        print('   export GOOGLE_APPLICATION_CREDENTIALS="/path/to/key.json"')
+        print("\n" + "=" * 60)
+        return False
+    
+    if not Path(creds_path).exists():
+        print(f"✗ Fichier de credentials non trouvé: {creds_path}")
+        return False
+    
+    print(f"✓ Credentials configurés: {creds_path}")
+    return True
+
+
+def extract_text_from_docx(docx_path):
+    """Extrait le texte d'un document Word paragraphe par paragraphe."""
+    print(f"Extraction du texte depuis {docx_path}...")
+    doc = Document(docx_path)
+    paragraphs = []
+    for para in doc.paragraphs:
+        text = para.text.strip()
+        if text:
+            paragraphs.append(text)
+    return paragraphs
+
+
+def synthesize_text(client, text, voice_name, speaking_rate=1.0, pitch=0.0):
+    """
+    Synthétise un texte en audio avec Google Cloud TTS.
+    
+    Args:
+        client: Client Google Cloud TTS
+        text: Texte à synthétiser
+        voice_name: Nom de la voix (ex: fr-FR-Neural2-A)
+        speaking_rate: Vitesse de parole (0.25 à 4.0)
+        pitch: Ton (-20.0 à 20.0)
+        
+    Returns:
+        Contenu audio en bytes (MP3)
+    """
+    synthesis_input = texttospeech.SynthesisInput(text=text)
+    
+    voice = texttospeech.VoiceSelectionParams(
+        language_code="fr-FR",
+        name=voice_name
+    )
+    
+    audio_config = texttospeech.AudioConfig(
+        audio_encoding=texttospeech.AudioEncoding.MP3,
+        speaking_rate=speaking_rate,
+        pitch=pitch
+    )
+    
+    response = client.synthesize_speech(
+        input=synthesis_input,
+        voice=voice,
+        audio_config=audio_config
+    )
+    
+    return response.audio_content
+
+
+def concatenate_mp3_files(mp3_files: list, output_path: str):
+    """
+    Concatène plusieurs fichiers MP3.
+    
+    Args:
+        mp3_files: Liste de chemins vers les fichiers MP3
+        output_path: Chemin du fichier de sortie
+    """
+    with open(output_path, "wb") as outfile:
+        for i, mp3_file in enumerate(mp3_files):
+            with open(mp3_file, "rb") as infile:
+                outfile.write(infile.read())
+            # Ajouter un petit silence entre les paragraphes
+            # (les fichiers MP3 contiennent déjà leur propre silence naturel)
+
+
+def process_document(client, docx_path, output_dir, voice_name, speaking_rate=1.0, pitch=0.0):
+    """Traite un document Word et génère le fichier audio MP3."""
+    import tempfile
+    
+    base_name = os.path.splitext(os.path.basename(docx_path))[0]
+    mp3_path = os.path.join(output_dir, f"{base_name}.mp3")
+
+    paragraphs = extract_text_from_docx(docx_path)
+    if not paragraphs:
+        print(f"  -> Le document {docx_path} est vide ou ne contient pas de texte lisible. Ignoré.")
+        return
+
+    print(f"  -> {len(paragraphs)} paragraphes trouvés. Début de la synthèse vocale...")
+
+    # Dossier temporaire pour les fichiers MP3 de chaque paragraphe
+    temp_dir = tempfile.mkdtemp(prefix="google_tts_")
+    mp3_files = []
+
+    try:
+        for i, paragraph in enumerate(paragraphs):
+            print(f"     Traitement du paragraphe {i+1}/{len(paragraphs)}...")
+            
+            temp_mp3 = os.path.join(temp_dir, f"paragraph_{i:04d}.mp3")
+            
+            try:
+                # Générer l'audio avec Google TTS
+                audio_content = synthesize_text(
+                    client, paragraph, voice_name, speaking_rate, pitch
+                )
+                
+                with open(temp_mp3, "wb") as f:
+                    f.write(audio_content)
+                mp3_files.append(temp_mp3)
+                
+            except Exception as e:
+                print(f"     Erreur lors du traitement du paragraphe {i+1} : {e}")
+
+        if not mp3_files:
+            print(f"  -> Aucun audio généré pour {docx_path}.")
+            return
+
+        print("  -> Concaténation des extraits audio...")
+        concatenate_mp3_files(mp3_files, mp3_path)
+        print(f"  ✓ Fichier sauvegardé: {mp3_path}")
+
+    finally:
+        # Nettoyer les fichiers temporaires
+        for f in mp3_files:
+            if os.path.exists(f):
+                os.remove(f)
+        try:
+            os.rmdir(temp_dir)
+        except:
+            pass
+
+
+def main():
+    """Fonction principale."""
+    # Vérifier les credentials
+    if not check_credentials():
+        return
+    
+    config = load_config()
+    input_dir = config.get("input_dir", "input_docs")
+    output_dir = config.get("output_dir", "output_audio")
+    voice_name = config.get("voice_name", "fr-FR-Neural2-A")
+    speaking_rate = config.get("speaking_rate", 1.0)
+    pitch = config.get("pitch", 0.0)
+
+    # Création des dossiers si nécessaires
+    os.makedirs(input_dir, exist_ok=True)
+    os.makedirs(output_dir, exist_ok=True)
+
+    # Récupérer tous les fichiers .docx
+    search_pattern = os.path.join(input_dir, "*.docx")
+    docx_files = glob.glob(search_pattern)
+
+    if not docx_files:
+        print(f"Aucun fichier .docx trouvé dans le dossier '{input_dir}'.")
+        return
+
+    print(f"\nInitialisation de Google Cloud TTS avec la voix : {voice_name}")
+    
+    try:
+        client = texttospeech.TextToSpeechClient()
+    except Exception as e:
+        print(f"Erreur lors de l'initialisation du client Google Cloud TTS : {e}")
+        return
+
+    print(f"{len(docx_files)} fichier(s) à traiter.")
+
+    for docx_file in docx_files:
+        print(f"\n--- Traitement de : {docx_file} ---")
+        process_document(
+            client=client,
+            docx_path=docx_file,
+            output_dir=output_dir,
+            voice_name=voice_name,
+            speaking_rate=speaking_rate,
+            pitch=pitch
+        )
+
+    print("\nTerminé ! Tous les fichiers ont été traités.")
+
+
+if __name__ == "__main__":
+    main()

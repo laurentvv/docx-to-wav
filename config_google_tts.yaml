@@ -1,0 +1,29 @@
+# Configuration Google Cloud Text-to-Speech
+
+# Dossiers
+input_dir: "input_docs"
+output_dir: "output_audio"
+
+# Voix française Google TTS
+# Options Chirp3-HD (meilleure qualité, free tier 1M chars/mois):
+#   fr-FR-Chirp3-HD-Algenib (MALE), fr-FR-Chirp3-HD-Aoede (FEMALE)
+# Options Neural2 (très bonne qualité):
+#   fr-FR-Neural2-A (FEMALE), fr-FR-Neural2-B (MALE), etc.
+# Options Standard (moins cher):
+#   fr-FR-Standard-A, fr-FR-Standard-B, etc.
+voice_name: "fr-FR-Chirp3-HD-Algenib"
+
+# Genre: MALE, FEMALE, NEUTRAL
+voice_gender: "MALE"
+
+# Langue
+language_code: "fr-FR"
+
+# Vitesse de parole (0.25 à 4.0, 1.0 = normal)
+speaking_rate: 1.0
+
+# Pitch (-20.0 à 20.0, 0.0 = normal)
+pitch: 0.0
+
+# Format de sortie
+audio_encoding: "MP3"
