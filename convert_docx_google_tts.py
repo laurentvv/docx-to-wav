@@ -139,8 +139,8 @@ def process_document(client, docx_path, output_dir, voice_name, speaking_rate=1.
                 os.remove(f)
         try:
             os.rmdir(temp_dir)
-        except:
-            pass
+        except OSError as e:
+            print(f"  -> Attention: Impossible de supprimer {temp_dir}: {e}")
 
 
 def main():
