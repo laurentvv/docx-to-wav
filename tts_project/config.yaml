@@ -1,0 +1,13 @@
+# tts_project/config.yaml
+
+# Configuration des dossiers d'entrée et de sortie
+input_dir: "input_docs"
+output_dir: "output_audio"
+
+# Voix française choisie pour la conversion (à déterminer après avoir testé test_voices.py)
+# Les voix françaises disponibles dans Kokoro commencent généralement par 'af_' ou 'am_' (ex: ff_siwis, am_adam, etc. - Kokoro v0.19)
+# Note: Kokoro 0.19 has French voices: ff_siwis, af_nicole, af_sarah, af_sky, am_adam, am_michael, etc., or specifically designated ones like `af_` (french female) and `am_` (french male) if applicable. But let's set a default placeholder.
+voice: "ff_siwis"
+
+# Options supplémentaires (ex: vitesse de lecture)
+speed: 1.0
