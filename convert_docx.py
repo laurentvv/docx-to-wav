@@ -5,7 +5,7 @@ import logging
 import yaml
 import soundfile as sf
 import numpy as np
-from docx import Document
+from utils import extract_text_from_docx, normalize_text
 from kokoro import KPipeline
 
 # Configuration du logging
@@ -27,17 +27,6 @@ def check_ffmpeg():
 def load_config(config_path="config.yaml"):
     with open(config_path, "r", encoding="utf-8") as f:
         return yaml.safe_load(f)
-
-def extract_text_from_docx(docx_path):
-    logger.info(f"Extraction du texte depuis {docx_path}...")
-    doc = Document(docx_path)
-    paragraphs = []
-    for para in doc.paragraphs:
-        text = para.text.strip()
-        # Ignorer les paragraphes vides
-        if text:
-            paragraphs.append(text)
-    return paragraphs
 
 def process_document(docx_path, output_dir, pipeline, voice, speed=1.0, sample_rate=24000):
     base_name = os.path.splitext(os.path.basename(docx_path))[0]

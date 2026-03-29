@@ -1,66 +1,111 @@
 #!/usr/bin/env python3
 """
 Module utilitaire commun pour les scripts de conversion docx vers audio.
-
-Ce module contient les fonctions partagées entre les différents scripts du projet.
 """
 
 import os
 import logging
+import re
 from pathlib import Path
 from docx import Document
 
 logger = logging.getLogger(__name__)
 
 
+def normalize_text(text: str) -> str:
+    """Normalise le texte pour éviter les problèmes avec les moteurs TTS."""
+    if not text:
+        return ""
+    text = text.replace('\u2019', "'").replace('\u2018', "'").replace('\u201b', "'")
+    text = text.replace('\u201c', '"').replace('\u201d', '"').replace('\u00ab', '"').replace('\u00bb', '"')
+    text = text.replace('\u2026', '...').replace('\u2013', '-').replace('\u2014', '-')
+    return text
+
+
 def check_google_credentials():
-    """
-    Vérifie que les credentials Google Cloud sont configurés.
-    
-    Returns:
-        bool: True si les credentials sont configurés et valides, False sinon.
-    """
+    """Vérifie que les credentials Google Cloud sont configurés."""
     creds_path = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS")
-    if not creds_path:
-        logger.error("=" * 60)
-        logger.error("Configuration des credentials requise !")
-        logger.error("=" * 60)
-        logger.info("1. Allez sur: https://console.cloud.google.com/apis/credentials")
-        logger.info("2. Créez un compte de service")
-        logger.info("3. Téléchargez le fichier JSON de la clé")
-        logger.info("4. Définissez la variable d'environnement:")
-        logger.info("   Windows (PowerShell):")
-        logger.info('   $env:GOOGLE_APPLICATION_CREDENTIALS="C:\\path\\to\\key.json"')
-        logger.info("   Windows (CMD):")
-        logger.info('   set GOOGLE_APPLICATION_CREDENTIALS=C:\\path\\to\\key.json')
-        logger.info("   Linux/macOS:")
-        logger.info('   export GOOGLE_APPLICATION_CREDENTIALS="/path/to/key.json"')
-        logger.error("=" * 60)
+    if not creds_path or not Path(creds_path).exists():
+        logger.error("Configuration des credentials Google Cloud requise !")
         return False
-    
-    if not Path(creds_path).exists():
-        logger.error(f"Fichier de credentials non trouvé: {creds_path}")
-        return False
-    
-    logger.info(f"Credentials configurés: {creds_path}")
     return True
 
 
-def extract_text_from_docx(docx_path):
+def split_into_sentences(text: str, max_chars: int = 1000) -> list:
+    """Découpe un texte en morceaux plus petits."""
+    if len(text) <= max_chars:
+        return [text]
+    sentences = re.split(r'(?<=[.!?])\s+', text)
+    chunks = []
+    current_chunk = ""
+    for sentence in sentences:
+        if len(current_chunk) + len(sentence) + 1 <= max_chars:
+            current_chunk = (current_chunk + " " + sentence) if current_chunk else sentence
+        else:
+            if current_chunk: chunks.append(current_chunk)
+            if len(sentence) > max_chars:
+                for i in range(0, len(sentence), max_chars): chunks.append(sentence[i:i+max_chars])
+                current_chunk = ""
+            else: current_chunk = sentence
+    if current_chunk: chunks.append(current_chunk)
+    return chunks
+
+
+def fix_french_elisions_ssml(text: str) -> str:
     """
-    Extrait le texte d'un document Word paragraphe par paragraphe.
+    Corrige les erreurs de prononciation de Chirp3-HD sur les apostrophes.
+    Approche renforcée pour forcer la liaison.
+    """
+    if not text: return ""
     
-    Args:
-        docx_path: Chemin vers le fichier .docx
-        
-    Returns:
-        list: Liste des paragraphes non vides
+    # On définit les caractères voyelles/accents français
+    voyelles = "aeiouéèêàâîïôûùhAEIOUÉÈÊÀÂÎÏÔÛÙH"
+    
+    # Cas spécifiques récalcitrants : "l'" suivi d'une voyelle
+    # On essaie un alias sans espace et peut-être une écriture phonétique simplifiée si nécessaire
+    # Ici, on tente de regrouper le l' avec le mot suivant dans l'alias
+    text = re.sub(rf"\b([ncjlsmdt])'([{voyelles}][\w]*)", 
+                  r"<sub alias='\1\2'>\1'\2</sub>", text)
+    
+    # Cas spécifique pour "qu'" -> on force la prononciation "k"
+    text = re.sub(rf"\b(qu)'([{voyelles}][\w]*)", 
+                  r"<sub alias='k\2'>qu'\2</sub>", text)
+                  
+    return text
+
+
+def extract_text_from_docx(docx_path, split_long_paragraphs: bool = True, max_chars: int = 1500):
+    """
+    Extrait le texte d'un document Word.
+    Retourne une liste de tuples (texte, est_titre).
     """
     logger.info(f"Extraction du texte depuis {docx_path}...")
     doc = Document(docx_path)
-    paragraphs = []
+    all_chunks = []
+    
     for para in doc.paragraphs:
         text = para.text.strip()
-        if text:
-            paragraphs.append(text)
-    return paragraphs
+        if not text:
+            continue
+            
+        is_title = False
+        if para.style.name.startswith(('Heading', 'Titre', 'Title')):
+            is_title = True
+        elif all(run.bold for run in para.runs if run.text.strip()):
+            is_title = True
+        elif text.isupper() and len(text) < 100:
+            is_title = True
+            
+        normalized_text = normalize_text(text)
+        
+        if is_title:
+            all_chunks.append((normalized_text, True))
+        else:
+            if split_long_paragraphs:
+                sentences = split_into_sentences(normalized_text, max_chars=max_chars)
+                for s in sentences:
+                    all_chunks.append((s, False))
+            else:
+                all_chunks.append((normalized_text, False))
+                
+    return all_chunks
