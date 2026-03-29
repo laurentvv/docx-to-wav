@@ -13,17 +13,8 @@ output_dir: "output_audio"
 #   fr-FR-Standard-A, fr-FR-Standard-B, etc.
 voice_name: "fr-FR-Chirp3-HD-Algenib"
 
-# Genre: MALE, FEMALE, NEUTRAL
-voice_gender: "MALE"
-
-# Langue
-language_code: "fr-FR"
-
 # Vitesse de parole (0.25 à 4.0, 1.0 = normal)
 speaking_rate: 1.0
 
 # Pitch (-20.0 à 20.0, 0.0 = normal)
 pitch: 0.0
-
-# Format de sortie
-audio_encoding: "MP3"
