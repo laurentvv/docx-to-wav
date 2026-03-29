@@ -19,6 +19,9 @@ import sys
 import glob
 import logging
 import yaml
+import subprocess
+import soundfile as sf
+import numpy as np
 
 from utils import check_google_credentials, extract_text_from_docx
 
@@ -55,7 +58,7 @@ def synthesize_text(client, text, voice_name, speaking_rate=1.0, pitch=0.0):
         pitch: Ton (-20.0 à 20.0)
         
     Returns:
-        Contenu audio en bytes (MP3)
+        Contenu audio en bytes (LINEAR16/WAV)
     """
     synthesis_input = texttospeech.SynthesisInput(text=text)
     
@@ -65,7 +68,7 @@ def synthesize_text(client, text, voice_name, speaking_rate=1.0, pitch=0.0):
     )
     
     audio_config = texttospeech.AudioConfig(
-        audio_encoding=texttospeech.AudioEncoding.MP3,
+        audio_encoding=texttospeech.AudioEncoding.LINEAR16,
         speaking_rate=speaking_rate,
         pitch=pitch
     )
@@ -79,20 +82,57 @@ def synthesize_text(client, text, voice_name, speaking_rate=1.0, pitch=0.0):
     return response.audio_content
 
 
-def concatenate_mp3_files(mp3_files: list, output_path: str):
+
+def check_ffmpeg():
+    """Vérifie que ffmpeg est installé et accessible dans le PATH."""
+    try:
+        subprocess.run(['ffmpeg', '-version'], capture_output=True, check=True)
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        raise RuntimeError("ffmpeg n'est pas installé ou non trouvé dans PATH")
+
+def concatenate_wav_files(wav_files: list, output_wav_path: str, output_mp3_path: str):
     """
-    Concatène plusieurs fichiers MP3.
+    Concatène plusieurs fichiers WAV en ajoutant un silence,
+    puis convertit le résultat en MP3 avec ffmpeg.
     
     Args:
-        mp3_files: Liste de chemins vers les fichiers MP3
-        output_path: Chemin du fichier de sortie
+        wav_files: Liste de chemins vers les fichiers WAV
+        output_wav_path: Chemin du fichier de sortie WAV temporaire
+        output_mp3_path: Chemin du fichier de sortie MP3 final
     """
-    with open(output_path, "wb") as outfile:
-        for i, mp3_file in enumerate(mp3_files):
-            with open(mp3_file, "rb") as infile:
-                outfile.write(infile.read())
-            # Ajouter un petit silence entre les paragraphes
-            # (les fichiers MP3 contiennent déjà leur propre silence naturel)
+    all_audio_chunks = []
+    sample_rate = 24000 # Google Cloud TTS LINEAR16 default is 24kHz
+
+    # Pause courte entre les paragraphes (0.5 seconde de silence)
+    pause_duration = 0.5
+
+    for i, wav_file in enumerate(wav_files):
+        # Lire le fichier WAV
+        data, sr = sf.read(wav_file)
+        sample_rate = sr # Mettre à jour avec le vrai sample_rate
+        all_audio_chunks.append(data)
+
+        # Ajouter un silence après chaque paragraphe (sauf le dernier)
+        if i < len(wav_files) - 1:
+            silence = np.zeros(int(sample_rate * pause_duration), dtype=data.dtype)
+            all_audio_chunks.append(silence)
+
+    logger.info("Concaténation des extraits audio...")
+    final_audio = np.concatenate(all_audio_chunks)
+
+    logger.info("Sauvegarde du fichier temporaire WAV...")
+    sf.write(output_wav_path, final_audio, sample_rate)
+
+    logger.info(f"Conversion en MP3 : {output_mp3_path}...")
+    try:
+        subprocess.run([
+            'ffmpeg', '-y', '-i', output_wav_path,
+            '-codec:a', 'libmp3lame', '-qscale:a', '2',
+            '-loglevel', 'error', output_mp3_path
+        ], check=True)
+        logger.info("Conversion MP3 réussie !")
+    except (subprocess.CalledProcessError, FileNotFoundError) as e:
+        logger.error(f"Erreur lors de la conversion ffmpeg : {e}")
 
 
 def process_document(client, docx_path, output_dir, voice_name, speaking_rate=1.0, pitch=0.0):
@@ -111,13 +151,14 @@ def process_document(client, docx_path, output_dir, voice_name, speaking_rate=1.
 
     # Dossier temporaire pour les fichiers MP3 de chaque paragraphe
     temp_dir = tempfile.mkdtemp(prefix="google_tts_")
-    mp3_files = []
+    wav_files = []
+    wav_path = mp3_path.replace('.mp3', '.wav')
 
     try:
         for i, paragraph in enumerate(paragraphs):
             logger.info(f"Traitement du paragraphe {i+1}/{len(paragraphs)}...")
             
-            temp_mp3 = os.path.join(temp_dir, f"paragraph_{i:04d}.mp3")
+            temp_wav = os.path.join(temp_dir, f"paragraph_{i:04d}.wav")
             
             try:
                 # Générer l'audio avec Google TTS
@@ -125,34 +166,44 @@ def process_document(client, docx_path, output_dir, voice_name, speaking_rate=1.
                     client, paragraph, voice_name, speaking_rate, pitch
                 )
                 
-                with open(temp_mp3, "wb") as f:
+                with open(temp_wav, "wb") as f:
                     f.write(audio_content)
-                mp3_files.append(temp_mp3)
+                wav_files.append(temp_wav)
                 
             except Exception as e:
                 logger.error(f"Erreur lors du traitement du paragraphe {i+1} : {e}")
 
-        if not mp3_files:
+        if not wav_files:
             logger.warning(f"Aucun audio généré pour {docx_path}.")
             return
 
         logger.info("Concaténation des extraits audio...")
-        concatenate_mp3_files(mp3_files, mp3_path)
+        concatenate_wav_files(wav_files, wav_path, mp3_path)
         logger.info(f"Fichier sauvegardé: {mp3_path}")
 
     finally:
         # Nettoyer les fichiers temporaires
-        for f in mp3_files:
+        for f in wav_files:
             if os.path.exists(f):
                 os.remove(f)
+        if os.path.exists(wav_path):
+            os.remove(wav_path)
         try:
             os.rmdir(temp_dir)
         except OSError as e:
             logger.warning(f"Impossible de supprimer {temp_dir}: {e}")
 
 
+
 def main():
     """Fonction principale."""
+    # Vérifier que ffmpeg est disponible
+    try:
+        check_ffmpeg()
+    except RuntimeError as e:
+        logger.error(f"{e}")
+        logger.info("Installez ffmpeg: https://ffmpeg.org/download.html")
+        return
     # Vérifier les credentials
     if not check_google_credentials():
         return
