@@ -133,6 +133,7 @@ def concatenate_wav_files(wav_files: list, output_wav_path: str, output_mp3_path
         logger.info("Conversion MP3 réussie !")
     except (subprocess.CalledProcessError, FileNotFoundError) as e:
         logger.error(f"Erreur lors de la conversion ffmpeg : {e}")
+        raise
 
 
 def process_document(client, docx_path, output_dir, voice_name, speaking_rate=1.0, pitch=0.0):
@@ -149,7 +150,7 @@ def process_document(client, docx_path, output_dir, voice_name, speaking_rate=1.
 
     logger.info(f"{len(paragraphs)} paragraphes trouvés. Début de la synthèse vocale...")
 
-    # Dossier temporaire pour les fichiers MP3 de chaque paragraphe
+    # Dossier temporaire pour les fichiers WAV de chaque paragraphe
     temp_dir = tempfile.mkdtemp(prefix="google_tts_")
     wav_files = []
     wav_path = mp3_path.replace('.mp3', '.wav')
