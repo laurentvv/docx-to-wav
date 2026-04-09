@@ -10,7 +10,7 @@ import logging
 import yaml
 import html
 
-from utils import check_google_credentials, extract_text_from_docx, fix_french_elisions_ssml
+from utils import check_google_credentials, extract_text_from_docx
 
 logging.basicConfig(
     level=logging.INFO,
@@ -58,22 +58,13 @@ def process_document(client, docx_path, output_dir, voice_name, speaking_rate=1.
     current_length = 0
     
     for text, is_title in chunks:
-        # --- CORRECTION ICI : On applique le correcteur d'élisions AVANT l'échappement HTML ---
-        # On utilise une version "safe" pour le SSML
-        fixed_text = fix_french_elisions_ssml(text)
-        
-        # On n'échappe QUE si le texte n'a pas été transformé en SSML par fix_french_elisions_ssml
-        # En fait, le plus simple est d'échapper les caractères dangereux (& < >) 
-        # mais de GARDER l'apostrophe pour que le regex puisse travailler.
-        
         safe_text = html.escape(text).replace("&#x27;", "'").replace("&quot;", '"')
-        processed_text = fix_french_elisions_ssml(safe_text)
         
         if is_title:
-            # Un peu plus lent que le récit (rate="0.9"), emphase forte, et pause après de 1.5s
-            formatted_text = f'<prosody rate="0.9"><emphasis level="strong">{processed_text}</emphasis></prosody> <break time="1.5s"/>'
+            # Un peu plus lent que le récit (rate="0.9"), emphase forte, et pause après de 1s
+            formatted_text = f'<prosody rate="0.9"><emphasis level="strong">{safe_text}</emphasis></prosody> <break time="1s"/>'
         else:
-            formatted_text = processed_text
+            formatted_text = safe_text
             
         if current_length + len(formatted_text) + 50 > 4500:
             batches.append(current_batch)

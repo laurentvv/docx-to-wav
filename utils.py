@@ -16,7 +16,7 @@ def normalize_text(text: str) -> str:
     """Normalise le texte pour éviter les problèmes avec les moteurs TTS."""
     if not text:
         return ""
-    text = text.replace('\u2019', "'").replace('\u2018', "'").replace('\u201b', "'")
+    # On a supprimé le remplacement des apostrophes courbes
     text = text.replace('\u201c', '"').replace('\u201d', '"').replace('\u00ab', '"').replace('\u00bb', '"')
     text = text.replace('\u2026', '...').replace('\u2013', '-').replace('\u2014', '-')
     return text
@@ -51,29 +51,6 @@ def split_into_sentences(text: str, max_chars: int = 1000) -> list:
     return chunks
 
 
-def fix_french_elisions_ssml(text: str) -> str:
-    """
-    Corrige les erreurs de prononciation de Chirp3-HD sur les apostrophes.
-    Approche renforcée pour forcer la liaison.
-    """
-    if not text: return ""
-    
-    # On définit les caractères voyelles/accents français
-    voyelles = "aeiouéèêàâîïôûùhAEIOUÉÈÊÀÂÎÏÔÛÙH"
-    
-    # Cas spécifiques récalcitrants : "l'" suivi d'une voyelle
-    # On essaie un alias sans espace et peut-être une écriture phonétique simplifiée si nécessaire
-    # Ici, on tente de regrouper le l' avec le mot suivant dans l'alias
-    text = re.sub(rf"\b([ncjlsmdt])'([{voyelles}][\w]*)", 
-                  r"<sub alias='\1\2'>\1'\2</sub>", text)
-    
-    # Cas spécifique pour "qu'" -> on force la prononciation "k"
-    text = re.sub(rf"\b(qu)'([{voyelles}][\w]*)", 
-                  r"<sub alias='k\2'>qu'\2</sub>", text)
-                  
-    return text
-
-
 def extract_text_from_docx(docx_path, split_long_paragraphs: bool = True, max_chars: int = 1500):
     """
     Extrait le texte d'un document Word.
@@ -90,6 +67,8 @@ def extract_text_from_docx(docx_path, split_long_paragraphs: bool = True, max_ch
             
         is_title = False
         if para.style.name.startswith(('Heading', 'Titre', 'Title')):
+            is_title = True
+        elif text.lower().startswith(('chapitre', 'acte')):
             is_title = True
         elif all(run.bold for run in para.runs if run.text.strip()):
             is_title = True

@@ -5,8 +5,8 @@ input_dir: "input_docs"
 output_dir: "output_audio"
 
 # Voix française Google TTS
-# Chirp3-HD-Algenib est la voix préférée (grain humain)
-voice_name: "fr-FR-Chirp3-HD-Algenib"
+# Polyglot-1 est la voix par défaut pour une lecture stable
+voice_name: "fr-FR-Polyglot-1"
 
 # Genre: MALE, FEMALE, NEUTRAL
 voice_gender: "MALE"

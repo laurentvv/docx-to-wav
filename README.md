@@ -11,19 +11,17 @@ Un outil puissant pour convertir vos documents Word (`.docx`) en fichiers audio 
 
 ---
 
-## ✨ Fonctionnalités (Version 2.0)
+## ✨ Fonctionnalités (Version 3.0)
 
 - **Optimisation Google Cloud TTS** : 
     - Génération MP3 directe (plus besoin de `ffmpeg` pour le moteur Google).
     - Support complet du **SSML** pour une prosodie naturelle.
-- **Correction Chirp3-HD** : 
-    - "Correcteur d'élisions" automatique pour forcer la prononciation correcte des apostrophes (`n'`, `l'`, `qu'`, etc.) sur le modèle Chirp3-HD.
 - **Mise en valeur des Titres** : 
     - Détection automatique des titres (`Heading 1`, texte en gras, MAJUSCULES).
     - Intonation spécifique pour les titres : plus lente (`rate="0.9"`), plus d'emphase, et pause de 1.5s après la lecture.
 - **Traitement Intelligent** : 
     - Découpage par phrases au lieu de paragraphes pour éviter les erreurs de prosodie.
-    - Normalisation automatique de la typographie Word (apostrophes courbes, guillemets, etc.).
+    - Normalisation automatique de la typographie Word (guillemets, ellipsis, etc.). *Note: Les apostrophes courbes sont préservées.*
 - **Gestion de la mémoire** : Parfait pour les documents longs (romans, cours, rapports) sans saturer la RAM.
 
 ---
@@ -61,15 +59,11 @@ Avant de commencer, assurez-vous d'avoir installé les outils suivants :
 ### Avec Google Cloud TTS (Recommandé)
 
 1. **Configuration** : Modifiez `config_google_tts.yaml`. 
-   - Voix par défaut : `fr-FR-Chirp3-HD-Algenib` (grain de voix humain).
+   - Voix par défaut : `fr-FR-Polyglot-1` (stabilité et fluidité).
 2. **Préparation** : Placez vos `.docx` dans `input_docs/`.
 3. **Conversion** :
    ```bash
    uv run python convert_docx_google_tts.py
-   ```
-4. **Validation** : Vous pouvez tester le nettoyage du texte sans consommer de crédit API :
-   ```bash
-   uv run python test_ssml_cleanup.py
    ```
 
 ### Avec Kokoro TTS (Local)
@@ -89,8 +83,7 @@ uv run python convert_docx.py
 ├── config_google_tts.yaml      # Configuration Google Cloud
 ├── convert_docx_google_tts.py  # Script principal Google (SSML + Direct MP3)
 ├── convert_docx.py             # Script principal Kokoro (Local)
-├── utils.py                    # Utilities (Extraction, Normalisation, SSML cleanup)
-├── test_ssml_cleanup.py        # Outil de test pour vérifier le nettoyage SSML
+├── utils.py                    # Utilities (Extraction, Normalisation)
 └── README.md                   # Ce fichier
 ```
 
@@ -99,7 +92,7 @@ uv run python convert_docx.py
 ## 🛠️ Configuration Google Cloud
 
 Le fichier `config_google_tts.yaml` permet de régler :
-- `voice_name` : `fr-FR-Chirp3-HD-Algenib` (Recommandé avec notre correcteur), `fr-FR-Studio-D` (Narration pure), ou `fr-FR-Neural2-G`.
+- `voice_name` : `fr-FR-Chirp3-HD-Algenib` (Recommandé), `fr-FR-Studio-D` (Narration pure), ou `fr-FR-Neural2-G`.
 - `speaking_rate` : Vitesse de lecture globale.
 
 ---
