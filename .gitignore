@@ -2,3 +2,6 @@ output_audio/*.mp3
 input_docs/*.docx
 __pycache__/
 .agent/*.duckdb.wal
+# Agent local state (ledger, installed skills) - kept on disk, never committed
+.agent/
+.agents/
